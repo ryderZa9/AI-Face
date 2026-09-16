@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cipher — AI Face</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0a0a0c;overflow:hidden}
+  body{font-family:"Martian Mono",ui-monospace,monospace;color:#7fe6ff}
+  a{color:#8b5cfe}a:hover{color:#b79bff}
+  #stage{position:fixed;inset:0}
+  #vignette{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 38%,rgba(5,5,8,.72) 100%)}
+  #scan{position:fixed;inset:0;pointer-events:none;opacity:.14;
+    background:repeating-linear-gradient(to bottom,rgba(140,230,255,.5) 0 1px,rgba(0,0,0,0) 1px 3px)}
+  .hud{position:fixed;z-index:5;font-size:9px;letter-spacing:.02em;text-transform:uppercase}
+  #brand{top:22px;left:24px;display:flex;flex-direction:column;gap:6px}
+  #brand b{font-weight:600;font-size:11px;color:#c9f4ff;letter-spacing:.06em}
+  #brand span{color:#5f97ab;font-weight:300}
+  #state{top:22px;right:24px;text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  #stateVal{font-size:11px;font-weight:600;color:#8b5cfe;letter-spacing:.08em}
+  #meterWrap{width:120px;height:3px;background:rgba(127,230,255,.14);overflow:hidden}
+  #meter{height:100%;width:0%;background:linear-gradient(90deg,#39d7ff,#8b5cfe);transition:width .05s linear}
+  #bar{bottom:26px;left:0;right:0;display:flex;flex-wrap:wrap;gap:10px;
+    justify-content:center;padding:0 16px}
+  .grp{display:flex;border:1px solid rgba(127,230,255,.22);background:rgba(10,14,20,.55);
+    backdrop-filter:blur(6px)}
+  .btn{appearance:none;border:0;background:transparent;color:#5c93a6;font:inherit;font-size:9px;
+    text-transform:uppercase;letter-spacing:.06em;padding:11px 13px;cursor:pointer;
+    transition:color .18s,background .18s;white-space:nowrap}
+  .btn:hover{color:#c9f4ff;background:rgba(127,230,255,.07)}
+  .btn.on{color:#0a0a0c;background:#39d7ff}
+  .btn.rec{color:#0a0a0c;background:#8b5cfe}
+  .grp .btn + .btn{border-left:1px solid rgba(127,230,255,.18)}
+  #say{appearance:none;border:0;background:transparent;color:#c9f4ff;font:inherit;font-size:9px;
+    letter-spacing:.04em;padding:11px 13px;width:min(34vw,272px);outline:none}
+  #say::placeholder{color:#4f7f90;text-transform:uppercase}
+  #file{display:none}
+  #hint{position:fixed;bottom:9px;left:0;right:0;text-align:center;z-index:5;font-size:9px;
+    color:#6f9dac;letter-spacing:.06em;text-transform:uppercase;font-weight:300}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="vignette"></div>
+<div id="scan"></div>
+
+<div class="hud" id="brand">
+  <b>CIPHER</b>
+  <span>synthetic interface v0.2</span>
+</div>
+
+<div class="hud" id="state">
+  <div id="stateVal">IDLE</div>
+  <div id="meterWrap"><div id="meter"></div></div>
+</div>
+
+<div class="hud" id="bar">
+  <div class="grp">
+    <button class="btn on" id="bHead">Head</button>
+    <button class="btn" id="bMask">Mask</button>
+  </div>
+  <div class="grp">
+    <input id="say" placeholder="Type something to speak" value="I am listening. Ask me anything.">
+    <button class="btn" id="bSpeak">Speak</button>
+  </div>
+  <div class="grp">
+    <button class="btn" id="bMic">Mic</button>
+    <button class="btn" id="bMon" title="Hear the microphone — use headphones">Monitor</button>
+    <button class="btn" id="bFile">Audio file</button>
+    <button class="btn" id="bStop">Stop</button>
+  </div>
+</div>
+<div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom</div>
+<input type="file" id="file" accept="audio/*">
+<audio id="aud" crossorigin="anonymous"></audio>
+
+<script type="module">
+import { createCipherFace } from './cipher-face.js';
+
+const $ = id => document.getElementById(id);
+const stateVal = $('stateVal'), meter = $('meter');
+const LABEL = { idle:'IDLE', listening:'LISTENING', speaking:'SPEAKING', tts:'SPEAKING' };
+
+const face = createCipherFace({
+  container: $('stage'),
+  accent: '#8b5cfe',
+  onState: m => { stateVal.textContent = LABEL[m] || m.toUpperCase(); },
+  onLevel: v => { meter.style.width = (Math.min(1, v * 1.2) * 100).toFixed(1) + '%'; }
+});
+
+$('bHead').onclick = () => { face.setFace('head'); $('bHead').classList.add('on'); $('bMask').classList.remove('on'); };
+$('bMask').onclick = () => { face.setFace('mask'); $('bMask').classList.add('on'); $('bHead').classList.remove('on'); };
+
+$('bSpeak').onclick = () => {
+  const t = $('say').value.trim(); if(!t) return;
+  face.speak(t).catch(e => { stateVal.textContent = 'NO VOICE'; console.warn(e); });
+};
+$('say').addEventListener('keydown', e => { if(e.key === 'Enter') $('bSpeak').click(); });
+
+$('bMic').onclick = async () => {
+  if(face.mode === 'listening'){ face.stop(); $('bMic').classList.remove('rec'); $('bMon').classList.remove('rec'); return; }
+  try{
+    await face.useMic();
+    $('bMic').classList.add('rec');
+  }catch(e){ stateVal.textContent = 'MIC DENIED'; }
+};
+$('bMon').onclick = () => {
+  const on = !$('bMon').classList.contains('rec');
+  face.setMonitor(on);
+  $('bMon').classList.toggle('rec', on);
+};
+$('bFile').onclick = () => $('file').click();
+$('file').onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  $('aud').src = URL.createObjectURL(f);
+  face.useAudioElement($('aud'));
+};
+$('bStop').onclick = () => {
+  face.stop();
+  $('bMic').classList.remove('rec'); $('bMon').classList.remove('rec');
+};
+</script>
+</body>
+</html>
